@@ -1,0 +1,13 @@
+I would like a HTML, Python, Flask App
+	- in it's own venv
+	- has it's own routes file
+	
+Main html page:
+	- imports a html file (file selector).  Example:  All_Players.html
+	- has a dropdown to select a position (loads from All_Players.html column 'Position').
+	- has two dropdowns to compare two stats (loads from All_Players.html columns from Aer A/90 to the xG column)
+	- has a button to 'compare' that is disabled until all values have been selected
+
+When compare button is clicked:
+	- values are filtered on their selected dropdowns
+	- a football stats style x,y graph is displayed on the page with central x and y axis drawn based on the average of the x and y values

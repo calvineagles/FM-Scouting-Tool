@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FM Scouting Tool</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 2.5em;
+            font-weight: 300;
+        }
+        
+        .controls {
+            padding: 30px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .control-group {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        
+        .control-item {
+            display: flex;
+            flex-direction: column;
+            min-width: 200px;
+        }
+        
+        .control-item label {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #495057;
+        }
+        
+        select {
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 14px;
+            background: white;
+            transition: border-color 0.3s ease;
+        }
+        
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .compare-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            margin-top: 20px;
+        }
+        
+        .compare-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        .compare-btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .chart-container {
+            padding: 30px;
+            position: relative;
+        }
+        
+        .chart-wrapper {
+            position: relative;
+            height: 600px;
+            width: 100%;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 50px;
+            color: #6c757d;
+        }
+        
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .stats-info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #2196f3;
+        }
+        
+        .stats-info h3 {
+            margin: 0 0 10px 0;
+            color: #1976d2;
+        }
+        
+        .stats-info p {
+            margin: 5px 0;
+            color: #424242;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⚽ FM Scouting Tool</h1>
+            <p>Compare football players based on their performance statistics</p>
+        </div>
+        
+        <div class="controls">
+            <div class="control-group">
+                <div class="control-item">
+                    <label for="fileUpload">Upload HTML File:</label>
+                    <input type="file" id="fileUpload" accept=".html">
+                </div>
+                <div class="control-item">
+                    <label for="positionSelect">Best Pos:</label>
+                    <select id="positionSelect" disabled>
+                        <option value="">Select a file first</option>
+                    </select>
+                </div>
+                <div class="control-item">
+                    <label for="stat1Select">Stat 1 (X-axis):</label>
+                    <select id="stat1Select" disabled>
+                        <option value="">Select a file first</option>
+                    </select>
+                </div>
+                <div class="control-item">
+                    <label for="stat2Select">Stat 2 (Y-axis):</label>
+                    <select id="stat2Select" disabled>
+                        <option value="">Select a file first</option>
+                    </select>
+                </div>
+            </div>
+            <button id="compareBtn" class="compare-btn" disabled>Compare Players</button>
+        </div>
+        
+        <div class="chart-container">
+            <div id="chartWrapper" class="chart-wrapper">
+                <div class="loading">
+                    <h3>Select position and stats to compare players</h3>
+                    <p>Choose a position and two statistics to generate a comparison chart</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let chart = null;
+        let selectedFile = '';
+        let uploadedFile = '';
+        
+        // Load HTML files on page load
+        window.addEventListener('DOMContentLoaded', function() {
+            loadHtmlFiles();
+        });
+        
+        async function loadHtmlFiles() {
+            try {
+                const response = await fetch('/api/html_files');
+                const files = await response.json();
+                const fileSelect = document.getElementById('fileSelect');
+                fileSelect.innerHTML = '<option value="">Select a file...</option>';
+                files.forEach(file => {
+                    const option = document.createElement('option');
+                    option.value = file;
+                    option.textContent = file;
+                    fileSelect.appendChild(option);
+                });
+                fileSelect.disabled = false;
+            } catch (error) {
+                console.error('Error loading files:', error);
+            }
+        }
+        
+        document.getElementById('fileUpload').addEventListener('change', async function() {
+            const file = this.files[0];
+            if (!file) return;
+            const formData = new FormData();
+            formData.append('file', file);
+            try {
+                const response = await fetch('/api/upload_html', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+                if (result.success) {
+                    uploadedFile = result.filename;
+                    selectedFile = uploadedFile;
+                    handleFileSelection();
+                } else {
+                    alert('Upload failed: ' + (result.error || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('Upload failed.');
+            }
+        });
+        
+        function handleFileSelection() {
+            const posSel = document.getElementById('positionSelect');
+            const stat1Sel = document.getElementById('stat1Select');
+            const stat2Sel = document.getElementById('stat2Select');
+            if (selectedFile) {
+                posSel.innerHTML = '';
+                stat1Sel.innerHTML = '';
+                stat2Sel.innerHTML = '';
+                posSel.disabled = false;
+                stat1Sel.disabled = false;
+                stat2Sel.disabled = false;
+                loadPositions();
+                loadStats();
+            } else {
+                posSel.innerHTML = '<option value="">Select a file first</option>';
+                stat1Sel.innerHTML = '<option value="">Select a file first</option>';
+                stat2Sel.innerHTML = '<option value="">Select a file first</option>';
+                posSel.disabled = true;
+                stat1Sel.disabled = true;
+                stat2Sel.disabled = true;
+            }
+            checkSelections();
+        }
+        
+        async function loadPositions() {
+            if (!selectedFile) return;
+            try {
+                const response = await fetch(`/api/positions?filename=${encodeURIComponent(selectedFile)}`);
+                const positions = await response.json();
+                const positionSelect = document.getElementById('positionSelect');
+                positionSelect.disabled = false;
+                positionSelect.innerHTML = '<option value="All">All Positions</option>';
+                positions.forEach(position => {
+                    const option = document.createElement('option');
+                    option.value = position;
+                    option.textContent = position;
+                    positionSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error loading positions:', error);
+            }
+        }
+        
+        async function loadStats() {
+            if (!selectedFile) return;
+            try {
+                const response = await fetch(`/api/stats?filename=${encodeURIComponent(selectedFile)}`);
+                const stats = await response.json();
+                const stat1Select = document.getElementById('stat1Select');
+                const stat2Select = document.getElementById('stat2Select');
+                stat1Select.disabled = false;
+                stat2Select.disabled = false;
+                stat1Select.innerHTML = '<option value="">Select Stat 1</option>';
+                stat2Select.innerHTML = '<option value="">Select Stat 2</option>';
+                stats.forEach(stat => {
+                    const option1 = document.createElement('option');
+                    option1.value = stat;
+                    option1.textContent = stat;
+                    stat1Select.appendChild(option1);
+                    const option2 = document.createElement('option');
+                    option2.value = stat;
+                    option2.textContent = stat;
+                    stat2Select.appendChild(option2);
+                });
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        }
+        
+        function checkSelections() {
+            const position = document.getElementById('positionSelect').value;
+            const stat1 = document.getElementById('stat1Select').value;
+            const stat2 = document.getElementById('stat2Select').value;
+            const compareBtn = document.getElementById('compareBtn');
+            compareBtn.disabled = !(selectedFile && position && stat1 && stat2);
+        }
+        
+        document.getElementById('positionSelect').addEventListener('change', checkSelections);
+        document.getElementById('stat1Select').addEventListener('change', checkSelections);
+        document.getElementById('stat2Select').addEventListener('change', checkSelections);
+        
+        document.getElementById('compareBtn').addEventListener('click', async function() {
+            const position = document.getElementById('positionSelect').value;
+            const stat1 = document.getElementById('stat1Select').value;
+            const stat2 = document.getElementById('stat2Select').value;
+            if (!(selectedFile && position && stat1 && stat2)) return;
+            const chartWrapper = document.getElementById('chartWrapper');
+            chartWrapper.innerHTML = '<div class="loading"><h3>Loading comparison...</h3></div>';
+            try {
+                const response = await fetch('/api/compare', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        filename: selectedFile,
+                        position: position,
+                        stat1: stat1,
+                        stat2: stat2
+                    })
+                });
+                const result = await response.json();
+                if (result.error) {
+                    chartWrapper.innerHTML = `<div class="error">${result.error}</div>`;
+                    return;
+                }
+                createChart(result);
+            } catch (error) {
+                console.error('Error comparing players:', error);
+                chartWrapper.innerHTML = '<div class="error">Error loading comparison data</div>';
+            }
+        });
+        
+        // Create the chart
+        function createChart(data) {
+            const chartWrapper = document.getElementById('chartWrapper');
+            
+            // Destroy existing chart
+            if (chart) {
+                chart.destroy();
+            }
+            
+            // Create canvas
+            chartWrapper.innerHTML = '<canvas id="playerChart"></canvas>';
+            
+            const ctx = document.getElementById('playerChart').getContext('2d');
+            
+            // Prepare data for Chart.js - create individual datasets for each player
+            const chartData = {
+                datasets: data.data.map(player => ({
+                    label: player.name + ' (' + player.club + ')',
+                    data: [{
+                        x: player.x,
+                        y: player.y
+                    }],
+                    backgroundColor: 'rgba(102, 126, 234, 0.6)',
+                    borderColor: 'rgba(102, 126, 234, 1)',
+                    borderWidth: 1,
+                    pointRadius: 6,
+                    pointHoverRadius: 10,
+                    pointHoverBackgroundColor: 'rgba(102, 126, 234, 0.8)',
+                    pointHoverBorderColor: 'rgba(102, 126, 234, 1)',
+                    pointHoverBorderWidth: 2
+                }))
+            };
+            
+            // Debug: Log the first few data points
+            console.log('Chart data sample:', chartData.datasets.slice(0, 3));
+            
+            // Create chart
+            chart = new Chart(ctx, {
+                type: 'scatter',
+                data: chartData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: `Player Comparison: ${data.stat1} vs ${data.stat2}`,
+                            font: {
+                                size: 18
+                            }
+                        },
+                        legend: {
+                            display: false
+                        },
+                        annotation: {
+                            annotations: {
+                                // Vertical line (average X)
+                                vLine: {
+                                    type: 'line',
+                                    xMin: data.avg_x,
+                                    xMax: data.avg_x,
+                                    borderColor: 'rgba(255, 99, 132, 0.8)',
+                                    borderWidth: 2,
+                                    borderDash: [5, 5],
+                                    label: {
+                                        content: `Avg ${data.stat1}: ${data.avg_x.toFixed(2)}`,
+                                        position: 'top'
+                                    }
+                                },
+                                // Horizontal line (average Y)
+                                hLine: {
+                                    type: 'line',
+                                    yMin: data.avg_y,
+                                    yMax: data.avg_y,
+                                    borderColor: 'rgba(255, 99, 132, 0.8)',
+                                    borderWidth: 2,
+                                    borderDash: [5, 5],
+                                    label: {
+                                        content: `Avg ${data.stat2}: ${data.avg_y.toFixed(2)}`,
+                                        position: 'left'
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: data.stat1
+                            },
+                            grid: {
+                                color: 'rgba(0,0,0,0.1)'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: data.stat2
+                            },
+                            grid: {
+                                color: 'rgba(0,0,0,0.1)'
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Add stats info
+            const statsInfo = document.createElement('div');
+            statsInfo.className = 'stats-info';
+            statsInfo.innerHTML = `
+                <h3>Chart Information</h3>
+                <p><strong>Position:</strong> ${document.getElementById('positionSelect').value}</p>
+                <p><strong>Players shown:</strong> ${data.data.length}</p>
+                <p><strong>Average ${data.stat1}:</strong> ${data.avg_x.toFixed(2)}</p>
+                <p><strong>Average ${data.stat2}:</strong> ${data.avg_y.toFixed(2)}</p>
+            `;
+            chartWrapper.appendChild(statsInfo);
+        }
+    </script>
+</body>
+</html> 
