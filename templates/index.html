@@ -160,6 +160,12 @@
                     <input type="file" id="fileUpload" accept=".html">
                 </div>
                 <div class="control-item">
+                    <label for="teamSelect">Highlight Team:</label>
+                    <select id="teamSelect" disabled>
+                        <option value="">Select a file first</option>
+                    </select>
+                </div>
+                <div class="control-item">
                     <label for="positionSelect">Best Pos:</label>
                     <select id="positionSelect" disabled>
                         <option value="">Select a file first</option>
@@ -195,6 +201,7 @@
         let chart = null;
         let selectedFile = '';
         let uploadedFile = '';
+        let selectedTeam = '';
         
         // Load HTML files on page load
         window.addEventListener('DOMContentLoaded', function() {
@@ -242,28 +249,61 @@
             }
         });
         
+        document.getElementById('teamSelect').addEventListener('change', function() {
+            selectedTeam = this.value;
+            if (chart && selectedFile) {
+                // Recreate chart with new team selection
+                document.getElementById('compareBtn').click();
+            }
+        });
+        
         function handleFileSelection() {
+            const teamSel = document.getElementById('teamSelect');
             const posSel = document.getElementById('positionSelect');
             const stat1Sel = document.getElementById('stat1Select');
             const stat2Sel = document.getElementById('stat2Select');
             if (selectedFile) {
+                teamSel.innerHTML = '';
                 posSel.innerHTML = '';
                 stat1Sel.innerHTML = '';
                 stat2Sel.innerHTML = '';
+                teamSel.disabled = false;
                 posSel.disabled = false;
                 stat1Sel.disabled = false;
                 stat2Sel.disabled = false;
+                loadTeams();
                 loadPositions();
                 loadStats();
             } else {
+                teamSel.innerHTML = '<option value="">Select a file first</option>';
                 posSel.innerHTML = '<option value="">Select a file first</option>';
                 stat1Sel.innerHTML = '<option value="">Select a file first</option>';
                 stat2Sel.innerHTML = '<option value="">Select a file first</option>';
+                teamSel.disabled = true;
                 posSel.disabled = true;
                 stat1Sel.disabled = true;
                 stat2Sel.disabled = true;
             }
             checkSelections();
+        }
+        
+        async function loadTeams() {
+            if (!selectedFile) return;
+            try {
+                const response = await fetch(`/api/teams?filename=${encodeURIComponent(selectedFile)}`);
+                const teams = await response.json();
+                const teamSelect = document.getElementById('teamSelect');
+                teamSelect.disabled = false;
+                teamSelect.innerHTML = '<option value="">All Teams</option>';
+                teams.forEach(team => {
+                    const option = document.createElement('option');
+                    option.value = team;
+                    option.textContent = team;
+                    teamSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error loading teams:', error);
+            }
         }
         
         async function loadPositions() {
@@ -377,13 +417,13 @@
                         x: player.x,
                         y: player.y
                     }],
-                    backgroundColor: 'rgba(102, 126, 234, 0.6)',
-                    borderColor: 'rgba(102, 126, 234, 1)',
+                    backgroundColor: player.club === selectedTeam ? 'rgba(255, 99, 132, 0.6)' : 'rgba(102, 126, 234, 0.6)',
+                    borderColor: player.club === selectedTeam ? 'rgba(255, 99, 132, 1)' : 'rgba(102, 126, 234, 1)',
                     borderWidth: 1,
                     pointRadius: 6,
                     pointHoverRadius: 10,
-                    pointHoverBackgroundColor: 'rgba(102, 126, 234, 0.8)',
-                    pointHoverBorderColor: 'rgba(102, 126, 234, 1)',
+                    pointHoverBackgroundColor: player.club === selectedTeam ? 'rgba(255, 99, 132, 0.8)' : 'rgba(102, 126, 234, 0.8)',
+                    pointHoverBorderColor: player.club === selectedTeam ? 'rgba(255, 99, 132, 1)' : 'rgba(102, 126, 234, 1)',
                     pointHoverBorderWidth: 2
                 }))
             };

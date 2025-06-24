@@ -42,6 +42,15 @@ def init_routes(app):
         positions = df['Best Pos'].dropna().unique().tolist()
         return jsonify(positions)
 
+    @app.route('/api/teams')
+    def get_teams():
+        filename = request.args.get('filename', 'All_Players.html')
+        df = load_player_data(filename)
+        if df.empty:
+            return jsonify([])
+        teams = sorted(df['Club'].dropna().unique().tolist())
+        return jsonify(teams)
+
     @app.route('/api/stats')
     def get_stats():
         filename = request.args.get('filename', 'All_Players.html')
