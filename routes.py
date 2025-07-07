@@ -89,6 +89,9 @@ def init_routes(app):
         # Calculate averages for axis lines
         avg_stat1 = filtered_df[stat1].mean()
         avg_stat2 = filtered_df[stat2].mean()
+        # Calculate medians for trend lines
+        median_stat1 = filtered_df[stat1].median()
+        median_stat2 = filtered_df[stat2].median()
         # Prepare data for plotting
         plot_data = []
         for _, row in filtered_df.iterrows():
@@ -103,6 +106,8 @@ def init_routes(app):
             'data': plot_data,
             'avg_x': avg_stat1,
             'avg_y': avg_stat2,
+            'median_x': median_stat1,
+            'median_y': median_stat2,
             'stat1': stat1,
             'stat2': stat2
         }) 
