@@ -8,7 +8,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.4.0/dist/chartjs-plugin-annotation.min.js"></script>
     <style>
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Segoe UI', 'Roboto', Arial, sans-serif;
             margin: 0;
             padding: 20px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -145,6 +145,106 @@
             margin: 5px 0;
             color: #424242;
         }
+        #playerModal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            background: rgba(30, 30, 40, 0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        div.modal-content {
+            background: #f0f4fa !important;
+            border-radius: 16px;
+            max-width: 900px;
+            width: 95%;
+            margin: 40px auto;
+            padding: 36px 32px 32px 32px;
+            position: relative;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.18), 0 1.5px 6px rgba(0,0,0,0.10);
+            border: 1.5px solid #e0e0e8;
+        }
+        #closeModal {
+            position: absolute;
+            top: 14px; right: 28px;
+            font-size: 2.2em;
+            cursor: pointer;
+            color: #888;
+            transition: color 0.2s;
+        }
+        #closeModal:hover {
+            color: #d32f2f;
+        }
+        #modalTitle {
+            margin-bottom: 18px;
+            text-align: center;
+            font-size: 2.1em;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            color: #f4f4f8 !important;
+        }
+        #modalBody {
+            display: flex;
+            gap: 18px;
+            justify-content: center;
+        }
+        #modalInfoCol {
+            flex: 1;
+            min-width: 120px;
+            max-width: 160px;
+            font-size: 1.05em;
+            color: #3a3a3a;
+            padding-right: 10px;
+        }
+        #modalInfoCol div {
+            margin-bottom: 7px;
+        }
+        #modalTechCol, #modalMentCol, #modalPhysCol {
+            flex: 1;
+            min-width: 90px;
+            max-width: 120px;
+        }
+        .modal-attr-header {
+            margin-bottom: 7px;
+            font-weight: 700;
+            text-align: center;
+            background: #e9ecef;
+            border-radius: 6px;
+            padding: 4px 0 3px 0;
+            color: #2d3142;
+            font-size: 1.07em;
+            letter-spacing: 0.2px;
+        }
+        .modal-attr-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2px;
+            font-size: 1em;
+        }
+        #playerModal .modal-content {
+            background: #232946 !important;
+            color: #f4f4f8 !important;
+        }
+        #playerModal .modal-content b {
+            color: #f4f4f8;
+        }
+        #playerModal .modal-content div {
+            color: #f4f4f8;
+        }
+        #playerModal .modal-content span {
+            color: #f4f4f8;
+        }
+        #playerModal .modal-content input,
+        #playerModal .modal-content select {
+            background: #393e54;
+            color: #f4f4f8;
+        }
+        #playerModal .modal-attr-header {
+            background: #393e54 !important;
+            color: #fff !important;
+        }
     </style>
 </head>
 <body>
@@ -194,6 +294,28 @@
                     <h3>Select position and stats to compare players</h3>
                     <p>Choose a position and two statistics to generate a comparison chart</p>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Player Modal -->
+    <div id="playerModal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
+        <div class="modal-content">
+            <span id="closeModal" style="position:absolute; top:10px; right:20px; font-size:2em; cursor:pointer;">&times;</span>
+            <div style="display:flex; align-items:center; justify-content:center; gap:16px; margin-bottom:18px;">
+                <h2 id="modalTitle" style="font-size:2em; font-weight:700; margin:0;"></h2>
+            </div>
+            <div id="modalBody" style="display:flex; gap:18px; justify-content:center;">
+                <!-- 4 columns: Info, Technical, Mental, Physical -->
+                <div id="modalInfoCol" style="flex:1; min-width:120px; max-width:160px; font-size:1em;">
+                    <!-- Info will be injected here -->
+                </div>
+                <div id="modalTechCol" style="flex:1; min-width:90px; max-width:120px;"></div>
+                <div id="modalMentCol" style="flex:1; min-width:90px; max-width:120px;"></div>
+                <div id="modalPhysCol" style="flex:1; min-width:90px; max-width:120px;"></div>
+            </div>
+            <div id="modalCopyBtnRow" style="display:flex; justify-content:flex-end; margin-top:24px;">
+                <button id="copyNameBtn" title="Copy name to clipboard" style="background:#393e54; color:#f4f4f8; border:none; border-radius:6px; padding:8px 22px; font-size:1em; cursor:pointer; transition:background 0.2s;">Copy Name</button>
             </div>
         </div>
     </div>
@@ -501,6 +623,13 @@
                                 color: 'rgba(0,0,0,0.1)'
                             }
                         }
+                    },
+                    onClick: function(evt, elements) {
+                        if (elements.length > 0) {
+                            const idx = elements[0].datasetIndex;
+                            const player = data.data[idx];
+                            showPlayerModal(player);
+                        }
                     }
                 }
             });
@@ -517,6 +646,57 @@
             `;
             chartWrapper.appendChild(statsInfo);
         }
+
+        function showPlayerModal(player) {
+            // Set modal title to just the player's name
+            document.getElementById('modalTitle').innerText = player.name;
+            // Set up copy button
+            const copyBtn = document.getElementById('copyNameBtn');
+            copyBtn.onclick = function() {
+                navigator.clipboard.writeText(player.name);
+                copyBtn.innerText = 'Copied!';
+                setTimeout(() => { copyBtn.innerText = 'Copy Name'; }, 1200);
+            };
+            // Info column
+            document.getElementById('modalInfoCol').innerHTML = `
+                <div style='height:28px;'></div>
+                <div><b>Club:</b> ${player.club}</div>
+                <div><b>Age:</b> ${player.age}</div>
+                <div><b>Position:</b> ${player.position}</div>
+                <div><b>Value:</b> ${player.transfer_value}</div>
+                <div><b>Wage:</b> ${player.wage}</div>
+            `;
+            // Attribute columns
+            const technical = ['Cor','Cro','Dri','Fin','Fir','Fre','Hea','Lon','L Th','Mar','Pas','Pen','Tck','Tec'];
+            const mental = ['Agg','Ant','Bra','Cmp','Cnt','Dec','Det','Fla','Ldr','OtB','Pos','Tea','Vis','Wor'];
+            const physical = ['Acc','Agi','Bal','Jum','Pac','Sta','Str'];
+            function formatAttrValue(val) {
+                const num = parseInt(val);
+                if (!isNaN(num)) {
+                    if (num >= 15) return `<span style='color:green;font-weight:bold;'>${num}</span>`;
+                    if (num < 10) return `<span style='color:red;font-weight:bold;'>${num}</span>`;
+                    return `<span style='color:goldenrod;font-weight:bold;'>${num}</span>`;
+                }
+                return val;
+            }
+            function buildAttrCol(attrs, title) {
+                return `<div class='modal-attr-header'>${title}</div>` +
+                    attrs.map(attr => `<div class='modal-attr-row'><span>${attr}</span><span>${formatAttrValue(player.attributes[attr])}</span></div>`).join('');
+            }
+            document.getElementById('modalTechCol').innerHTML = buildAttrCol(technical, 'Technical');
+            document.getElementById('modalMentCol').innerHTML = buildAttrCol(mental, 'Mental');
+            document.getElementById('modalPhysCol').innerHTML = buildAttrCol(physical, 'Physical');
+            // Show modal
+            document.getElementById('playerModal').style.display = 'flex';
+        }
+        document.getElementById('closeModal').onclick = function() {
+            document.getElementById('playerModal').style.display = 'none';
+        };
+        window.onclick = function(event) {
+            if (event.target === document.getElementById('playerModal')) {
+                document.getElementById('playerModal').style.display = 'none';
+            }
+        };
     </script>
 </body>
 </html> 

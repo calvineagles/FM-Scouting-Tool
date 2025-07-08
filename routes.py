@@ -68,46 +68,74 @@ def init_routes(app):
 
     @app.route('/api/compare', methods=['POST'])
     def compare_players():
-        """API endpoint to compare players based on selected criteria"""
-        data = request.get_json()
-        filename = data.get('filename', 'All_Players.html')
-        position = data.get('position')
-        stat1 = data.get('stat1')
-        stat2 = data.get('stat2')
-        df = load_player_data(filename)
-        if df.empty:
-            return jsonify({'error': 'No data available'})
-        # Filter by position
-        if position and position != 'All':
-            filtered_df = df[df['Best Pos'] == position].copy()
-        else:
-            filtered_df = df.copy()
-        # Remove rows with missing data for selected stats
-        filtered_df = filtered_df.dropna(subset=[stat1, stat2])
-        if filtered_df.empty:
-            return jsonify({'error': 'No data available for selected criteria'})
-        # Calculate averages for axis lines
-        avg_stat1 = filtered_df[stat1].mean()
-        avg_stat2 = filtered_df[stat2].mean()
-        # Calculate medians for trend lines
-        median_stat1 = filtered_df[stat1].median()
-        median_stat2 = filtered_df[stat2].median()
-        # Prepare data for plotting
-        plot_data = []
-        for _, row in filtered_df.iterrows():
-            plot_data.append({
-                'name': row['Name'],
-                'club': row['Club'],
-                'position': row['Best Pos'],
-                'x': float(row[stat1]),
-                'y': float(row[stat2])
+        try:
+            data = request.get_json()
+            filename = data.get('filename', 'All_Players.html')
+            position = data.get('position')
+            stat1 = data.get('stat1')
+            stat2 = data.get('stat2')
+            df = load_player_data(filename)
+            if df.empty:
+                return jsonify({'error': 'No data available'})
+            # Filter by position
+            if position and position != 'All':
+                filtered_df = df[df['Best Pos'] == position].copy()
+            else:
+                filtered_df = df.copy()
+            # Remove rows with missing data for selected stats
+            filtered_df = filtered_df.dropna(subset=[stat1, stat2])
+            if filtered_df.empty:
+                return jsonify({'error': 'No data available for selected criteria'})
+            # Calculate averages for axis lines
+            avg_stat1 = filtered_df[stat1].mean()
+            avg_stat2 = filtered_df[stat2].mean()
+            # Calculate medians for trend lines
+            median_stat1 = filtered_df[stat1].median()
+            median_stat2 = filtered_df[stat2].median()
+            # Prepare data for plotting
+            fm_attributes = [
+                # Technical
+                'Cor', 'Cro', 'Dri', 'Fin', 'Fir', 'Fre', 'Hea', 'Lon', 'L Th', 'Mar', 'Pas', 'Pen', 'Tck', 'Tec',
+                # Mental
+                'Agg', 'Ant', 'Bra', 'Cmp', 'Cnt', 'Dec', 'Det', 'Fla', 'Ldr', 'OtB', 'Pos', 'Tea', 'Vis', 'Wor',
+                # Physical
+                'Acc', 'Agi', 'Bal', 'Jum', 'Nat', 'Pac', 'Sta', 'Str'
+            ]
+            plot_data = []
+            for _, row in filtered_df.iterrows():
+                # Ensure x and y are always float and not Series
+                x_val = row[stat1]
+                y_val = row[stat2]
+                if hasattr(x_val, 'iloc'):
+                    x_val = x_val.iloc[0]
+                if hasattr(y_val, 'iloc'):
+                    y_val = y_val.iloc[0]
+                player_data = {
+                    'name': str(row.get('Name', '')),
+                    'club': str(row.get('Club', '')),
+                    'position': str(row.get('Best Pos', '')),
+                    'age': str(row.get('Age', '')),
+                    'transfer_value': str(row.get('Transfer Value', '')),
+                    'wage': str(row.get('Wage', '')),
+                    'x': float(x_val) if x_val not in [None, ''] else 0,
+                    'y': float(y_val) if y_val not in [None, ''] else 0,
+                    'attributes': {}
+                }
+                for attr in fm_attributes:
+                    value = row.get(attr, '')
+                    if hasattr(value, 'iloc'):
+                        value = value.iloc[0]
+                    player_data['attributes'][attr] = str(value) if value is not None else ''
+                plot_data.append(player_data)
+            return jsonify({
+                'data': plot_data,
+                'avg_x': avg_stat1,
+                'avg_y': avg_stat2,
+                'median_x': median_stat1,
+                'median_y': median_stat2,
+                'stat1': stat1,
+                'stat2': stat2
             })
-        return jsonify({
-            'data': plot_data,
-            'avg_x': avg_stat1,
-            'avg_y': avg_stat2,
-            'median_x': median_stat1,
-            'median_y': median_stat2,
-            'stat1': stat1,
-            'stat2': stat2
-        }) 
+        except Exception as e:
+            print(f"Error in /api/compare: {e}")
+            return jsonify({'error': str(e)}), 500 
