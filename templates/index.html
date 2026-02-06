@@ -284,6 +284,14 @@
                         <option value="">Select a file first</option>
                     </select>
                 </div>
+                <div class="control-item">
+                    <label for="minValueInput">Min Value (M):</label>
+                    <input type="number" id="minValueInput" step="0.1" placeholder="e.g. 5">
+                </div>
+                <div class="control-item">
+                    <label for="maxValueInput">Max Value (M):</label>
+                    <input type="number" id="maxValueInput" step="0.1" placeholder="e.g. 50">
+                </div>
             </div>
             <button id="compareBtn" class="compare-btn" disabled>Compare Players</button>
         </div>
@@ -491,6 +499,8 @@
             const position = document.getElementById('positionSelect').value;
             const stat1 = document.getElementById('stat1Select').value;
             const stat2 = document.getElementById('stat2Select').value;
+            const minValueM = document.getElementById('minValueInput').value;
+            const maxValueM = document.getElementById('maxValueInput').value;
             if (!(selectedFile && position && stat1 && stat2)) return;
             const chartWrapper = document.getElementById('chartWrapper');
             chartWrapper.innerHTML = '<div class="loading"><h3>Loading comparison...</h3></div>';
@@ -504,7 +514,9 @@
                         filename: selectedFile,
                         position: position,
                         stat1: stat1,
-                        stat2: stat2
+                        stat2: stat2,
+                        min_value_m: minValueM ? parseFloat(minValueM) : null,
+                        max_value_m: maxValueM ? parseFloat(maxValueM) : null
                     })
                 });
                 const result = await response.json();
