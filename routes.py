@@ -74,6 +74,8 @@ def init_routes(app):
             position = data.get('position')
             stat1 = data.get('stat1')
             stat2 = data.get('stat2')
+            min_value_m = data.get('min_value_m')
+            max_value_m = data.get('max_value_m')
             df = load_player_data(filename)
             if df.empty:
                 return jsonify({'error': 'No data available'})
@@ -82,6 +84,45 @@ def init_routes(app):
                 filtered_df = df[df['Best Pos'] == position].copy()
             else:
                 filtered_df = df.copy()
+            # Parse transfer value to numeric in millions
+            def parse_value_to_millions(val):
+                if val is None:
+                    return None
+                s = str(val).strip()
+                if s == '' or s == '-' or s.lower() == 'wnt':
+                    return None
+                # Handle ranges like '£23M - £34M' -> take midpoint
+                if '-' in s:
+                    parts = [p.strip() for p in s.split('-')]
+                    nums = [parse_value_to_millions(p) for p in parts]
+                    nums = [n for n in nums if n is not None]
+                    if len(nums) == 2:
+                        return (nums[0] + nums[1]) / 2.0
+                    return nums[0] if nums else None
+                # Remove currency and commas
+                s = s.replace('£', '').replace(',', '').upper()
+                if s.endswith('M'):
+                    try:
+                        return float(s[:-1])
+                    except:
+                        return None
+                if s.endswith('K'):
+                    try:
+                        return float(s[:-1]) / 1000.0
+                    except:
+                        return None
+                # Plain number assumed to be pounds
+                try:
+                    return float(s) / 1_000_000.0
+                except:
+                    return None
+            if 'Transfer Value' in filtered_df.columns:
+                filtered_df['__value_m'] = filtered_df['Transfer Value'].apply(parse_value_to_millions)
+                # Apply min/max filters
+                if min_value_m is not None:
+                    filtered_df = filtered_df[(filtered_df['__value_m'].isna()) | (filtered_df['__value_m'] >= float(min_value_m))]
+                if max_value_m is not None:
+                    filtered_df = filtered_df[(filtered_df['__value_m'].isna()) | (filtered_df['__value_m'] <= float(max_value_m))]
             # Remove rows with missing data for selected stats
             filtered_df = filtered_df.dropna(subset=[stat1, stat2])
             if filtered_df.empty:
@@ -99,7 +140,7 @@ def init_routes(app):
                 # Mental
                 'Agg', 'Ant', 'Bra', 'Cmp', 'Cnt', 'Dec', 'Det', 'Fla', 'Ldr', 'OtB', 'Pos', 'Tea', 'Vis', 'Wor',
                 # Physical
-                'Acc', 'Agi', 'Bal', 'Jum', 'Nat', 'Pac', 'Sta', 'Str'
+                'Acc', 'Agi', 'Bal', 'Jum', 'Pac', 'Sta', 'Str'
             ]
             plot_data = []
             for _, row in filtered_df.iterrows():
